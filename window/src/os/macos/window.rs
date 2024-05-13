@@ -1908,7 +1908,7 @@ impl WindowView {
             let mut inner = myself.inner.borrow_mut();
 
             let text = s.to_string();
-            let attr = Some(
+            let attr = (selected_range.0.length > 0).then_some(
                 text.chars()
                     .scan(0, |i, c| (Some(*i), *i += c.len_utf16()).0)
                     .map(|i| {

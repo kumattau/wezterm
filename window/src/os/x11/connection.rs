@@ -850,18 +850,22 @@ impl XConnection {
                         let mut inner = window.lock().unwrap();
 
                         let text = info.text();
-                        let attr = Some(
-                            info.feedback_array()
-                                .iter()
-                                .map(|feedback| {
-                                    let mut attr = ComposingAttribute::NONE;
-                                    if feedback & InputFeedback::REVERSE.bits() != 0 {
-                                        attr |= ComposingAttribute::SELECTED;
+
+                        let mut attr = vec![];
+                        if !text.is_empty() {
+                            for (i, feedback) in info.feedback_array().iter().enumerate() {
+                                if feedback & InputFeedback::REVERSE.bits() != 0 {
+                                    if attr.is_empty() {
+                                        attr = vec![ComposingAttribute::NONE; i];
                                     }
-                                    attr
-                                })
-                                .collect(),
-                        );
+                                    attr.push(ComposingAttribute::SELECTED);
+                                } else if !attr.is_empty() {
+                                    attr.push(ComposingAttribute::NONE);
+                                }
+                            }
+                        }
+                        let attr = if !attr.is_empty() { Some(attr) } else { None };
+
                         let status = DeadKeyStatus::Composing(Composing { text, attr });
                         inner.dispatch_ime_compose_status(status);
                     }

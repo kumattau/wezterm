@@ -2125,19 +2125,27 @@ unsafe fn ime_composition(
         // processing
         if let Ok(compstr) = imc.get_raw::<u16>(GCS_COMPSTR) {
             if let Ok(text) = OsString::from_wide(&compstr[..]).into_string() {
-                let attr = imc.get_raw::<u8>(GCS_COMPATTR).ok().map(|compattr| {
-                    text.chars()
-                        .scan(0, |i, c| (Some(*i), *i += c.len_utf16()).0)
-                        .take_while(|&i| i < compattr.len())
-                        .map(|i| {
-                            let mut attr = ComposingAttribute::NONE;
-                            if compattr[i] & ATTR_TARGET_CONVERTED != 0 {
-                                attr |= ComposingAttribute::SELECTED;
+                let mut attr = vec![];
+                if !text.is_empty() {
+                    if let Ok(compattr) = imc.get_raw::<u8>(GCS_COMPATTR) {
+                        for i in text
+                            .chars()
+                            .scan(0, |i, c| (Some(*i), *i += c.len_utf16()).0)
+                            .take_while(|&i| i < compattr.len())
+                        {
+                            if compattr[i] == ATTR_TARGET_CONVERTED {
+                                if attr.is_empty() {
+                                    attr = vec![ComposingAttribute::NONE; i];
+                                }
+                                attr.push(ComposingAttribute::SELECTED);
+                            } else if !attr.is_empty() {
+                                attr.push(ComposingAttribute::NONE);
                             }
-                            attr
-                        })
-                        .collect()
-                });
+                        }
+                    }
+                }
+                let attr = if !attr.is_empty() { Some(attr) } else { None };
+
                 inner
                     .events
                     .dispatch(WindowEvent::AdviseDeadKeyStatus(DeadKeyStatus::Composing(
